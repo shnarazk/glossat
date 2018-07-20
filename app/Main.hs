@@ -11,9 +11,19 @@ import System.Environment
 import System.IO.Unsafe
 import SAT.Mios
 
+terminated :: IORef (Bool, [Int])
+terminated = unsafePerformIO $ newIORef (False, [])
+
 {-# NOINLINE getSolverData #-}
 getSolverData :: (MVar [Int], MVar Bool) -> Float -> [Int]
-getSolverData (mt, q) _ = unsafePerformIO $ do x <- takeMVar mt; {- putMVar q True; -} return x
+getSolverData (mt, q) _ = unsafePerformIO $ do
+  t <- readIORef terminated
+  if fst t
+    then snd <$> readIORef terminated
+    else do
+      x <- takeMVar mt
+      writeIORef terminated (False, x)
+      return x
 
 main :: IO ()
 main = do
@@ -21,10 +31,11 @@ main = do
   dump <- newEmptyMVar :: IO (MVar [Int])
   que <- newEmptyMVar :: IO (MVar Bool)
   let mutex = (dump, que)
-  void $ forkIO $ animate (InWindow f (800, 500) (20, 20)) black (frame mutex)
-  executeSolverSlicedOn mutex f
-  threadDelay 10000000
-  return ()
+  void $ forkIO $ do
+    executeSolverSlicedOn mutex f
+    v <- readIORef terminated
+    writeIORef terminated (True, snd v)
+  animate (InWindow f (800, 500) (20, 20)) black (frame mutex)
 
 {-# NOINLINE frame #-}
 frame :: (MVar [Int], MVar Bool) ->  Float -> Picture
