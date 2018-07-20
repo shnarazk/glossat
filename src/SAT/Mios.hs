@@ -116,12 +116,12 @@ executeSolver opts = do
 
 -- | executes a solver on the given CNF file.
 -- This is the simplest entry to standalone programs; not for Haskell programs.
-executeSolverSlicedOn :: MVar [Int] -> FilePath -> IO ()
+executeSolverSlicedOn :: (MVar [Int], MVar Bool) -> FilePath -> IO ()
 executeSolverSlicedOn m path = executeSolverSliced m (miosDefaultOption { _targetFile = Left path })
 
 -- | executes a solver on the given 'arg :: MiosConfiguration'.
 -- This is another entry point for standalone programs.
-executeSolverSliced :: MVar [Int] -> MiosProgramOption -> IO ()
+executeSolverSliced :: (MVar [Int], MVar Bool) -> MiosProgramOption -> IO ()
 executeSolverSliced mutex opts = do
   solverId <- myThreadId
   (desc, cls) <- parseCNF (_targetFile opts)
@@ -137,7 +137,7 @@ executeSolverSliced mutex opts = do
                               else reportResult opts t0 (Left OutOfMemory)
              e -> if -1 == _confBenchmark opts then print e else reportResult opts t0 (Left TimeOut)
          ) $ do
-    when (0 < _confBenchmark opts) $
+    when (False && 0 < _confBenchmark opts) $
       void $ forkIO $ do let -- getCPUTime returns a pico sec. :: Integer, 1000 * 1000 * 1000 * 1000
                              -- threadDelay requires a micro sec. :: Int,  1000 * 1000
                              req = 1000000000000 * fromIntegral (_confBenchmark opts) :: Integer

@@ -3,44 +3,38 @@ module Main where
 --import Lib
 import Graphics.Gloss
 import Prelude                                  hiding ( lines )
-import Control.Concurrent (forkIO, killThread, myThreadId, threadDelay, MVar(..)
-                          , newEmptyMVar, takeMVar)
+import Control.Concurrent (forkIO, myThreadId, threadDelay, MVar(..), newEmptyMVar, putMVar, takeMVar)
 import Control.Exception
 import Control.Monad ((<=<), unless, void, when)
 import Data.IORef
 import System.Environment
 import System.IO.Unsafe
-import System.Random
 import SAT.Mios
 
-getRand :: Float -> Float
-getRand _ = unsafePerformIO $ getStdRandom (randomR (30, 100))
-
-dump :: MVar [Int]
-dump = unsafePerformIO newEmptyMVar
-
-getSolverData :: Float -> [Int]
-getSolverData _ = unsafePerformIO $ takeMVar dump
-
-xp :: Float -> IORef Float
-xp t = unsafePerformIO $ newIORef 20
+{-# NOINLINE getSolverData #-}
+getSolverData :: (MVar [Int], MVar Bool) -> Float -> [Int]
+getSolverData (mt, q) _ = unsafePerformIO $ do x <- takeMVar mt; putMVar q True; return x
 
 main :: IO ()
 main = do
   (f:_) <- (++ ["/home/narazaki/Repositories/SATbench/sudoku/sudoku16.cnf"]) <$> getArgs
-  void $ forkIO $ animate (InWindow f (800, 500) (20, 20)) black frame
-  executeSolverSlicedOn dump f
-  threadDelay 12000000
+  dump <- newEmptyMVar :: IO (MVar [Int])
+  que <- newEmptyMVar :: IO (MVar Bool)
+  let mutex = (dump, que)
+  void $ forkIO $ animate (InWindow f (800, 500) (20, 20)) black (frame mutex)
+  executeSolverSlicedOn mutex f
+--  threadDelay 12000000
   return ()
 
-frame :: Float -> Picture
-frame time = Color white $ Scale 1.8 1.8 $ Translate 0 (-70) $ makeGrid (getSolverData time)
+{-# NOINLINE frame #-}
+frame :: (MVar [Int], MVar Bool) ->  Float -> Picture
+frame mt time = Color white $ Scale 1.8 1.8 $ Translate 0 (-70) $ makeGrid (getSolverData mt time)
 
 num2pos :: Int -> (Float, Float)
 num2pos n = (fromIntegral (mod n 100) * 4 - 200, 150 - fromIntegral (div n 100) * 4 - 20)
 
 makeGrid :: [Int] -> Picture
-makeGrid l = Pictures $ title : zipWith light l [1 .. ]
+makeGrid l = Pictures $ title : zipWith light l [0 .. ]
   where
     title = Translate (-200) 160 $ Scale 0.07 0.07 $ Text "searching..."
     light :: Int -> Int -> Picture
