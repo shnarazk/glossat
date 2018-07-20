@@ -19,12 +19,21 @@ extra-source-files:
 # common to point users to the README.md file.
 description:         Please see the README on GitHub at <https://github.com/shnarazk/glossat#readme>
 
+# default-extensions:   Strict
+
 dependencies:
-- base >= 4.7 && < 5
-- gloss
-- random
+  - base >= 4.7 && < 5
+  - bytestring >= 0.10
+  - ghc-prim >= 0.5
+  - primitive >= 0.6
+  - random
+  - vector >= 0.12
+  - gloss
 
 library:
+  ghc-options:
+    - -fwarn-missing-signatures
+#    - -funbox-strict-fields
   source-dirs: src
 
 executables:
@@ -35,6 +44,9 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    - -fwarn-missing-signatures
+#    - -funbox-strict-fields
+    - -O2
     dependencies:
     - glossat
 
