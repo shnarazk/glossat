@@ -3,7 +3,7 @@ module Main where
 --import Lib
 import Graphics.Gloss
 import Prelude                                  hiding ( lines )
-import Control.Concurrent (forkIO, myThreadId, threadDelay, MVar(..), newEmptyMVar, putMVar, takeMVar)
+import Control.Concurrent (forkIO, MVar(..), newEmptyMVar, putMVar, takeMVar)
 import Control.Exception
 import Control.Monad ((<=<), unless, void, when)
 import Data.IORef
@@ -15,8 +15,8 @@ terminated :: IORef (Bool, [Int])
 terminated = unsafePerformIO $ newIORef (False, [])
 
 {-# NOINLINE getSolverData #-}
-getSolverData :: (MVar [Int], MVar Bool) -> Float -> [Int]
-getSolverData (mt, q) _ = unsafePerformIO $ do
+getSolverData :: MVar [Int] -> Float -> [Int]
+getSolverData mt _ = unsafePerformIO $ do
   t <- readIORef terminated
   if fst t
     then snd <$> readIORef terminated
@@ -28,9 +28,7 @@ getSolverData (mt, q) _ = unsafePerformIO $ do
 main :: IO ()
 main = do
   (f:_) <- (++ ["/home/narazaki/Repositories/SATbench/sudoku/sudoku16.cnf"]) <$> getArgs
-  dump <- newEmptyMVar :: IO (MVar [Int])
-  que <- newEmptyMVar :: IO (MVar Bool)
-  let mutex = (dump, que)
+  mutex <- newEmptyMVar :: IO (MVar [Int])
   void $ forkIO $ do
     executeSolverSlicedOn mutex f
     v <- readIORef terminated
@@ -38,7 +36,7 @@ main = do
   animate (InWindow f (800, 500) (20, 20)) black (frame mutex)
 
 {-# NOINLINE frame #-}
-frame :: (MVar [Int], MVar Bool) ->  Float -> Picture
+frame :: MVar [Int] ->  Float -> Picture
 frame mt time = Color white $ Scale 1.8 1.8 $ Translate 0 (-70) $ makeGrid (getSolverData mt time)
 
 num2pos :: Int -> (Float, Float)

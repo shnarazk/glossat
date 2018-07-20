@@ -614,7 +614,7 @@ simplifyDB s@Solver{..} = do
 --   * 'True' if a partial assigment that is consistent with respect to the clause set is found.
 --      If all variables are decision variables, that means that the clause set is satisfiable.
 --   * 'False' if the clause set is unsatisfiable or some error occured.
-search :: Solver -> (MVar [Int], MVar Bool) -> IO Bool
+search :: Solver -> MVar [Int] -> IO Bool
 search s@Solver{..} mutex = do
   -- clear model
   let loop :: Bool -> IO Bool
@@ -629,8 +629,7 @@ search s@Solver{..} mutex = do
                     then analyzeFinal s confl False >> return False
                     else do backtrackLevel <- analyze s confl -- 'analyze' resets litsLearnt by itself
                             -- putStrLn "backjump"
-                            putMVar (fst mutex) . tail =<< asList assigns
-                            -- takeMVar (snd mutex)
+                            putMVar mutex . tail =<< asList assigns
                             (s `cancelUntil`) . max backtrackLevel =<< get' rootLevel
                             lbd' <- newLearntClause s litsLearnt
                             k <- get' litsLearnt
@@ -688,7 +687,7 @@ search s@Solver{..} mutex = do
 -- __Pre-condition:__ If assumptions are used, 'simplifyDB' must be
 -- called right before using this method. If not, a top-level conflict (resulting in a
 -- non-usable internal state) cannot be distinguished from a conflict under assumptions.
-solve :: (Foldable t) => Solver -> t Lit -> (MVar [Int], MVar Bool) -> IO SolverResult
+solve :: (Foldable t) => Solver -> t Lit -> MVar [Int] -> IO SolverResult
 solve s@Solver{..} assumps mutex = do
   -- PUSH INCREMENTAL ASSUMPTIONS:
   let inject :: Lit -> Bool -> IO Bool

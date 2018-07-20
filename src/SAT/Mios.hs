@@ -116,12 +116,12 @@ executeSolver opts = do
 
 -- | executes a solver on the given CNF file.
 -- This is the simplest entry to standalone programs; not for Haskell programs.
-executeSolverSlicedOn :: (MVar [Int], MVar Bool) -> FilePath -> IO ()
+executeSolverSlicedOn :: MVar [Int] -> FilePath -> IO ()
 executeSolverSlicedOn m path = executeSolverSliced m (miosDefaultOption { _targetFile = Left path })
 
 -- | executes a solver on the given 'arg :: MiosConfiguration'.
 -- This is another entry point for standalone programs.
-executeSolverSliced :: (MVar [Int], MVar Bool) -> MiosProgramOption -> IO ()
+executeSolverSliced :: MVar [Int] -> MiosProgramOption -> IO ()
 executeSolverSliced mutex opts = do
   solverId <- myThreadId
   (desc, cls) <- parseCNF (_targetFile opts)
