@@ -141,8 +141,8 @@ analyze s@Solver{..} confl = do
   pushTo litsLearnt 0 -- reserve the first place for the unassigned literal
   dl <- decisionLevel s
   let loopOnClauseChain :: Clause -> Lit -> Int -> Int -> Int -> IO Int
-      loopOnClauseChain c p ti bl pathC = do -- p : literal, ti = trail index, bl = backtrack level
-        when (c == NullClause) $ error "analyze found NULL"
+      loopOnClauseChain !c p ti bl pathC = do -- p : literal, ti = trail index, bl = backtrack level
+        -- when (c == NullClause) $ error "analyze found NULL"
         d <- getRank c
         when (0 /= d) $ claBumpActivity s c
         -- update LBD like #Glucose4.0
@@ -628,6 +628,9 @@ search s@Solver{..} mutex = do
                   if d == r                       -- Contradiction found:
                     then analyzeFinal s confl False >> return False
                     else do backtrackLevel <- analyze s confl -- 'analyze' resets litsLearnt by itself
+                            -- putStrLn "backjump"
+                            putMVar (fst mutex) . tail =<< asList assigns
+                            -- takeMVar (snd mutex)
                             (s `cancelUntil`) . max backtrackLevel =<< get' rootLevel
                             lbd' <- newLearntClause s litsLearnt
                             k <- get' litsLearnt
@@ -636,8 +639,6 @@ search s@Solver{..} mutex = do
                               setNth level v 0
                             varDecayActivity s
                             claDecayActivity s
-                            putMVar (fst mutex) =<< asList assigns
-                            takeMVar (snd mutex)
                             -- learnt DB Size Adjustment
                             modify' learntSCnt (subtract 1)
                             cnt <- get' learntSCnt

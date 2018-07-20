@@ -13,7 +13,7 @@ import SAT.Mios
 
 {-# NOINLINE getSolverData #-}
 getSolverData :: (MVar [Int], MVar Bool) -> Float -> [Int]
-getSolverData (mt, q) _ = unsafePerformIO $ do x <- takeMVar mt; putMVar q True; return x
+getSolverData (mt, q) _ = unsafePerformIO $ do x <- takeMVar mt; {- putMVar q True; -} return x
 
 main :: IO ()
 main = do
@@ -23,7 +23,7 @@ main = do
   let mutex = (dump, que)
   void $ forkIO $ animate (InWindow f (800, 500) (20, 20)) black (frame mutex)
   executeSolverSlicedOn mutex f
---  threadDelay 12000000
+  threadDelay 10000000
   return ()
 
 {-# NOINLINE frame #-}
@@ -34,9 +34,9 @@ num2pos :: Int -> (Float, Float)
 num2pos n = (fromIntegral (mod n 100) * 4 - 200, 150 - fromIntegral (div n 100) * 4 - 20)
 
 makeGrid :: [Int] -> Picture
-makeGrid l = Pictures $ title : zipWith light l [0 .. ]
+makeGrid l = Pictures $ zipWith light l [0 .. ]
   where
-    title = Translate (-200) 160 $ Scale 0.07 0.07 $ Text "searching..."
+    -- title = Translate (-200) 160 $ Scale 0.08 0.08 $ Text "searching..."
     light :: Int -> Int -> Picture
     light state n
       | state == -1 = Color blue        $ Translate x y $ circleSolid 1.7

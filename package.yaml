@@ -42,11 +42,11 @@ executables:
     source-dirs:         app
     ghc-options:
     - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+#    - -rtsopts
+#    - -with-rtsopts=-N
     - -fwarn-missing-signatures
     - -funbox-strict-fields
-    - -O2
+#    - -O2
     dependencies:
     - glossat
 
@@ -57,6 +57,5 @@ tests:
     ghc-options:
     - -threaded
     - -rtsopts
-    - -with-rtsopts=-N
     dependencies:
     - glossat
