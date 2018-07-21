@@ -29,16 +29,19 @@ getSolverData mt _ = unsafePerformIO $ do
 
 main :: IO ()
 main = do
-  args <- getArgs
-  (title, conf) <- case args of
-    []    -> return ("Sudoku16", miosDefaultOption { _targetFile = Right sudoku16 })
-    (f:_) -> return (f,  miosDefaultOption { _targetFile = Left f })
-  mutex <- newEmptyMVar :: IO (MVar [Int])
-  void $ forkIO $ do
-    executeSolverSliced mutex (conf { _confDumpStat  = 3 })
-    v <- readIORef terminated
-    writeIORef terminated (True, snd v)
-  animate (InWindow title (800, 500) (20, 20)) black (frame mutex)
+  opts <- miosParseOptionsFromArgs versionId
+  (title, conf) <- case (_targetFile opts) of
+    Left "" -> return ("Sudoku16", opts { _targetFile = Right sudoku16 })
+    Left f  -> return (f,  opts)
+  if  _displayHelp opts
+    then putStrLn $ miosUsage "\nUsage: glossat [OPTIONS] target.cnf"
+    else do
+        mutex <- newEmptyMVar :: IO (MVar [Int])
+        void $ forkIO $ do
+          executeSolverSliced mutex conf
+          v <- readIORef terminated
+          writeIORef terminated (True, snd v)
+        animate (InWindow title (800, 500) (20, 20)) black (frame mutex)
 
 {-# NOINLINE frame #-}
 frame :: MVar [Int] ->  Float -> Picture
