@@ -303,7 +303,6 @@ checkRestartCondition s@Solver{..} (fromIntegral -> lbd) (fromIntegral -> cLv) =
             set' nextRestart $ count + ceiling (step + gef ** ki)
             when (3 == dumpSolverStatMode config) $ do
               dumpStats DumpCSV s
-              print (count, next, gef, ki, gef ** ki, count + ceiling (step + gef ** ki))
             return forcingRestart
 
 -------------------------------------------------------------------------------- dump
