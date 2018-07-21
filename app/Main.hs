@@ -10,6 +10,8 @@ import Data.IORef
 import System.Environment
 import System.IO.Unsafe
 import SAT.Mios
+import SAT.Mios.OptionParser
+import Sudoku16 (sudoku16)
 
 terminated :: IORef (Bool, [Int])
 terminated = unsafePerformIO $ newIORef (False, [])
@@ -27,13 +29,16 @@ getSolverData mt _ = unsafePerformIO $ do
 
 main :: IO ()
 main = do
-  (f:_) <- (++ ["/home/narazaki/Repositories/SATbench/sudoku/sudoku16.cnf"]) <$> getArgs
+  args <- getArgs
+  (title, conf) <- case args of
+    []    -> return ("Sudoku16", miosDefaultOption { _targetFile = Right sudoku16 })
+    (f:_) -> return (f,  miosDefaultOption { _targetFile = Left f })
   mutex <- newEmptyMVar :: IO (MVar [Int])
   void $ forkIO $ do
-    executeSolverSlicedOn mutex f
+    executeSolverSliced mutex conf
     v <- readIORef terminated
     writeIORef terminated (True, snd v)
-  animate (InWindow f (800, 500) (20, 20)) black (frame mutex)
+  animate (InWindow title (800, 500) (20, 20)) black (frame mutex)
 
 {-# NOINLINE frame #-}
 frame :: MVar [Int] ->  Float -> Picture
