@@ -35,7 +35,7 @@ main = do
     (f:_) -> return (f,  miosDefaultOption { _targetFile = Left f })
   mutex <- newEmptyMVar :: IO (MVar [Int])
   void $ forkIO $ do
-    executeSolverSliced mutex conf
+    executeSolverSliced mutex (conf { _confDumpStat  = 3 })
     v <- readIORef terminated
     writeIORef terminated (True, snd v)
   animate (InWindow title (800, 500) (20, 20)) black (frame mutex)

@@ -295,11 +295,15 @@ checkRestartCondition s@Solver{..} (fromIntegral -> lbd) (fromIntegral -> cLv) =
   if (not blockingRestart && not forcingRestart)
     then return False
     else do incrementStat s (if blockingRestart then NumOfBlockRestart else NumOfRestart) 1
-            ki <- fromIntegral <$> getStat s (if blockingRestart then NumOfRestart else NumOfBlockRestart)
+            k1 <- fromIntegral <$> getStat s NumOfRestart
+            k2 <- fromIntegral <$> getStat s NumOfBlockRestart
             let gef = (if blockingRestart then restartExpansionB else restartExpansionF) config
                 step = restartExpansionS config
+                ki = min k1 k2
             set' nextRestart $ count + ceiling (step + gef ** ki)
-            when (3 == dumpSolverStatMode config) $ dumpStats DumpCSV s
+            when (3 == dumpSolverStatMode config) $ do
+              dumpStats DumpCSV s
+              print (count, next, gef, ki, gef ** ki, count + ceiling (step + gef ** ki))
             return forcingRestart
 
 -------------------------------------------------------------------------------- dump
