@@ -621,6 +621,8 @@ search s@Solver{..} mutex = do
       loop restart = do
         confl <- propagate s
         d <- decisionLevel s
+        x1 <- getStat s NumOfBackjump
+        when (x1 < 2) $ putMVar mutex . tail =<< asList assigns
         -- putMVar mutex =<< asList assigns
         if confl /= NullClause  -- CONFLICT
           then do incrementStat s NumOfBackjump 1
@@ -628,8 +630,8 @@ search s@Solver{..} mutex = do
                   if d == r                       -- Contradiction found:
                     then analyzeFinal s confl False >> return False
                     else do backtrackLevel <- analyze s confl -- 'analyze' resets litsLearnt by itself
-                            -- putStrLn "backjump"
-                            putMVar mutex . tail =<< asList assigns
+                            x2 <- (2 +) <$> getStat s NumOfRestart
+                            when (mod x2 ((ceiling . logBase 2 . fromIntegral) x2) == 0) $ putMVar mutex . tail =<< asList assigns
                             (s `cancelUntil`) . max backtrackLevel =<< get' rootLevel
                             lbd' <- newLearntClause s litsLearnt
                             k <- get' litsLearnt
