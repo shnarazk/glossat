@@ -45,7 +45,7 @@ frame :: MVar [Int] ->  Float -> Picture
 frame mt time = Color white $ Scale 1.8 1.8 $ Translate 0 (-70) $ makeGrid (getSolverData mt time)
 
 num2pos :: Int -> (Float, Float)
-num2pos n = (fromIntegral (mod n 100) * 4 - 200, 150 - fromIntegral (div n 100) * 4 - 20)
+num2pos n = (fromIntegral (mod n 100) * 4 - 200, 200 - fromIntegral (div n 100) * 4)
 
 makeGrid :: [Int] -> Picture
 makeGrid l = Pictures $ zipWith light l [0 .. ]
