@@ -711,6 +711,7 @@ solve s@Solver{..} assumps mutex = do
   if x
     then do set' rootLevel =<< decisionLevel s
             status <- search s mutex
+            putMVar mutex . tail =<< asList assigns
             -- post-proccesing should be done here
             let toInt :: Var -> IO Lit
                 toInt v = (\p -> if LiftedT == p then v else negate v) <$> valueVar s v
