@@ -288,7 +288,7 @@ checkRestartCondition s@Solver{..} (fromIntegral -> lbd) (fromIntegral -> cLv) =
   as  <- updateEMA emaASlow nas
   void $ updateEMA emaCDLvl cLv
   let filled = next <= count
-      blockingRestart = filled && 1.25 * as < af
+      blockingRestart = filled && 1.22 * as < af
       forcingRestart = filled && 1.25 * ds < df
       lv' = if forcingRestart then 0 else bLv
   void $ updateEMA emaBDLvl lv'
@@ -301,7 +301,7 @@ checkRestartCondition s@Solver{..} (fromIntegral -> lbd) (fromIntegral -> cLv) =
       incrementStat s NumOfBlockRestart 1
       mc <- max 0 . (+ 1) <$> get' restartCount
       let ef = ceiling $ restartStep config * restartExpansion config ** fromIntegral mc
-      set' nextRestart $ count + ef
+      set' nextRestart $ count + 40 + ef
       set' restartCount mc
       when (3 == dumpSolverStatMode config) $ dumpStats DumpCSV s
       return False
@@ -309,7 +309,7 @@ checkRestartCondition s@Solver{..} (fromIntegral -> lbd) (fromIntegral -> cLv) =
       incrementStat s NumOfRestart 1
       mc <- min 0 . (subtract 1) <$> get' restartCount
       let ef = ceiling $ restartStep config * restartExpansion config ** fromIntegral mc
-      set' nextRestart $ count + ef
+      set' nextRestart $ count + 40 + ef
       set' restartCount mc
       when (3 == dumpSolverStatMode config) $ dumpStats DumpCSV s
       return True
