@@ -93,6 +93,7 @@ data Solver = Solver
               , emaDFast    :: !EMA              -- ^ (Literal Block) Distance Fast
               , emaDSlow    :: !EMA              -- ^ (Literal Block) Distance Slow
               , nextRestart :: !Int'             -- ^ next restart in number of conflict
+              , restartCount :: !Int'            -- ^ incremented by blocking
               }
 
 -- | returns an everything-is-initialized solver from the arguments.
@@ -145,6 +146,7 @@ newSolver conf (CNFDescription nv dummy_nc _) =
     <*> fastEma                            -- emaDFast
     <*> slowEma                            -- emaDSlow
     <*> new' 100                           -- nextRestart
+    <*> new' 0                             -- restartCount
   where
     fastEma = newEMA False . fst $ emaCoeffs conf
     slowEma = newEMA True . snd $ emaCoeffs conf

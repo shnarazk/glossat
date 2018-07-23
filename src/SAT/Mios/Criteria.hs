@@ -275,7 +275,7 @@ nddOf Solver{..} stack = do
 
 -------------------------------------------------------------------------------- restart
 
--- | #62, #74
+-- | #62, #74, #91
 checkRestartCondition :: Solver -> Int -> Int -> IO Bool
 checkRestartCondition s@Solver{..} (fromIntegral -> lbd) (fromIntegral -> cLv) = do
   next <- get' nextRestart
@@ -292,18 +292,27 @@ checkRestartCondition s@Solver{..} (fromIntegral -> lbd) (fromIntegral -> cLv) =
       forcingRestart = filled && 1.25 * ds < df
       lv' = if forcingRestart then 0 else bLv
   void $ updateEMA emaBDLvl lv'
-  if (not blockingRestart && not forcingRestart)
-    then return False
-    else do incrementStat s (if blockingRestart then NumOfBlockRestart else NumOfRestart) 1
-            k1 <- fromIntegral <$> getStat s NumOfRestart
-            k2 <- fromIntegral <$> getStat s NumOfBlockRestart
-            let gef = (if blockingRestart then restartExpansionB else restartExpansionF) config
-                step = restartExpansionS config
-                ki = min k1 k2
-            set' nextRestart $ count + ceiling (step + gef ** ki)
-            when (3 == dumpSolverStatMode config) $ do
-              dumpStats DumpCSV s
-            return forcingRestart
+  case (blockingRestart, forcingRestart) of
+    (False, False) -> return False
+    (True, True)   -> do        -- I have no idea what this case means.
+      set' restartCount 0
+      return False
+    (True, False)  -> do        -- blocking restart
+      incrementStat s NumOfBlockRestart 1
+      mc <- max 0 . (+ 1) <$> get' restartCount
+      let ef = ceiling $ restartStep config * restartExpansion config ** fromIntegral mc
+      set' nextRestart $ count + ef
+      set' restartCount mc
+      when (3 == dumpSolverStatMode config) $ dumpStats DumpCSV s
+      return False
+    (False, True) -> do         -- forcing restart
+      incrementStat s NumOfRestart 1
+      mc <- min 0 . (subtract 1) <$> get' restartCount
+      let ef = ceiling $ restartStep config * restartExpansion config ** fromIntegral mc
+      set' nextRestart $ count + ef
+      set' restartCount mc
+      when (3 == dumpSolverStatMode config) $ dumpStats DumpCSV s
+      return True
 
 -------------------------------------------------------------------------------- dump
 
