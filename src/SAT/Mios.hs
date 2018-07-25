@@ -33,7 +33,7 @@ module SAT.Mios
        , injectClausesFromCNF
        , dumpAssigmentAsCNF
         -- * IF for gloss
-       , executeSolverSlicedOn
+       , buildSolver
        , executeSolverSliced
        )
        where
@@ -114,17 +114,18 @@ executeSolver opts = do
 --    putMVar token result
 --    killThread solverId
 
--- | executes a solver on the given CNF file.
--- This is the simplest entry to standalone programs; not for Haskell programs.
-executeSolverSlicedOn :: MVar [Int] -> FilePath -> IO ()
-executeSolverSlicedOn m path = executeSolverSliced m (miosDefaultOption { _targetFile = Left path })
+buildSolver :: MiosProgramOption -> IO Solver
+buildSolver opts = do
+  (desc, cls) <- parseCNF (_targetFile opts)
+  s <- newSolver (toMiosConf opts) desc
+  injectClausesFromCNF s desc cls
+  return s
 
 -- | executes a solver on the given 'arg :: MiosConfiguration'.
 -- This is another entry point for standalone programs.
-executeSolverSliced :: MVar [Int] -> MiosProgramOption -> IO ()
-executeSolverSliced mutex opts = do
+executeSolverSliced :: MVar [Int] -> MiosProgramOption -> Solver -> IO ()
+executeSolverSliced mutex opts s = do
   solverId <- myThreadId
-  (desc, cls) <- parseCNF (_targetFile opts)
   token <- newEmptyMVar --  :: IO (MVar (Maybe Solver))
   t0 <- reportElapsedTime False "" $ if _confVerbose opts || 0 <= _confBenchmark opts then -1 else 0
   handle (\case
@@ -133,14 +134,12 @@ executeSolverSliced mutex opts = do
                               else reportResult opts t0 (Left TimeOut)
              ThreadKilled  -> reportResult opts t0 =<< readMVar token
              HeapOverflow  -> if -1 == _confBenchmark opts
-                              then putStrLn "Abort: a too large problem or heap exhausted (use '+RTS -M16g' if you need)"
+                              then putStrLn "Abort: a too large problem (use '+RTS -M16g' if you need)"
                               else reportResult opts t0 (Left OutOfMemory)
              e -> if -1 == _confBenchmark opts then print e else reportResult opts t0 (Left TimeOut)
          ) $ do
     when (False && 0 < _confBenchmark opts) $
-      void $ forkIO $ do let -- getCPUTime returns a pico sec. :: Integer, 1000 * 1000 * 1000 * 1000
-                             -- threadDelay requires a micro sec. :: Int,  1000 * 1000
-                             req = 1000000000000 * fromIntegral (_confBenchmark opts) :: Integer
+      void $ forkIO $ do let req = 1000000000000 * fromIntegral (_confBenchmark opts) :: Integer
                              waiting = do elp <- getCPUTime
                                           when (elp < req) $ do
                                             threadDelay . max 1000000 $ fromIntegral (req - elp) `div` 1000000
@@ -148,11 +147,6 @@ executeSolverSliced mutex opts = do
                          waiting
                          putMVar token (Left TimeOut)
                          killThread solverId
-    s <- newSolver (toMiosConf opts) desc
-    injectClausesFromCNF s desc cls
-    void $ reportElapsedTime (_confVerbose opts) ("## [" ++ showPathFixed opts ++ "] Parse: ") t0
-    -- putMVar token (Left TimeOut)
-    -- killThread solverId
     when (0 < _confDumpStat opts) $ dumpStats DumpCSVHeader s
     result <- solve s [] mutex
     putMVar token result
