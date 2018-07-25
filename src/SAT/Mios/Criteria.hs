@@ -288,31 +288,23 @@ checkRestartCondition s@Solver{..} (fromIntegral -> lbd) (fromIntegral -> cLv) =
   as  <- updateEMA emaASlow nas
   void $ updateEMA emaCDLvl cLv
   let filled = next <= count
-      blockingRestart = filled && 1.22 * as < af
-      forcingRestart = filled && 1.25 * ds < df
+      blockingRestart = filled && 1.24 * as < af
+      forcingRestart = filled && 1.24 * ds < df
       lv' = if forcingRestart then 0 else bLv
   void $ updateEMA emaBDLvl lv'
-  case (blockingRestart, forcingRestart) of
-    (False, False) -> return False
-    (True, True)   -> do        -- I have no idea what this case means.
-      set' restartCount 0
-      return False
-    (True, False)  -> do        -- blocking restart
-      incrementStat s NumOfBlockRestart 1
-      mc <- max 0 . (+ 1) <$> get' restartCount
-      let ef = ceiling $ restartStep config * restartExpansion config ** fromIntegral mc
-      set' nextRestart $ count + 40 + ef
-      set' restartCount mc
-      when (3 == dumpSolverStatMode config) $ dumpStats DumpCSV s
-      return False
-    (False, True) -> do         -- forcing restart
-      incrementStat s NumOfRestart 1
-      mc <- min 0 . (subtract 1) <$> get' restartCount
-      let ef = ceiling $ restartStep config * restartExpansion config ** fromIntegral mc
-      set' nextRestart $ count + 40 + ef
-      set' restartCount mc
-      when (3 == dumpSolverStatMode config) $ dumpStats DumpCSV s
-      return True
+  if (not blockingRestart && not forcingRestart)
+    then return False
+    else do when (blockingRestart && forcingRestart) $ modify' restartExp (* 0.5)
+            nb <- getStat s NumOfBlockRestart
+            nf <- getStat s NumOfRestart
+            ki <- if blockingRestart
+                  then incrementStat s NumOfBlockRestart 1 >> return (if nb <= nf then   0.5 else 0.02)
+                  else incrementStat s NumOfRestart      1 >> return (if nf <= nb then -0.05 else 0.01)
+            gef <- (+ ki) <$> get' restartExp
+            set' nextRestart $ count + ceiling (16 + 32 ** gef)
+            set' restartExp gef
+            when (3 == dumpSolverStatMode config) $ dumpStats DumpCSV s
+            return forcingRestart
 
 -------------------------------------------------------------------------------- dump
 
@@ -328,13 +320,10 @@ emaLabels = [ ("emaAFast", emaAFast)
 {-# INLINABLE dumpStats #-}
 -- | print statatistic data to stdio. This should be called after each restart.
 dumpStats :: DumpMode -> Solver -> IO ()
-
 dumpStats NoDump _ = return ()
-
 dumpStats DumpCSVHeader s@Solver{..} = do
   sts <- init <$> getStats s
   putStrLn . intercalate "," $ map (show . fst) sts ++ map fst emaLabels
-
 dumpStats DumpCSV s@Solver{..} = do
   -- update the stat data before dump
   va <- get' trailLim
@@ -348,6 +337,5 @@ dumpStats DumpCSV s@Solver{..} = do
                 return $ showFFloat (Just 3) x ""
   vals <- mapM (fs . snd) emaLabels
   putStrLn . intercalate "," $ map (show . snd) sts ++ vals
-
 -- | FIXME: use Util/Stat
 dumpStats DumpJSON _ = return ()                -- mode 2: JSON
