@@ -11,6 +11,7 @@ import System.Environment
 import System.IO.Unsafe
 import SAT.Mios
 import SAT.Mios.OptionParser
+import SAT.Mios.Solver
 import Sudoku16 (sudoku16)
 
 terminated :: IORef (Bool, [Int])
@@ -29,26 +30,33 @@ getSolverData mt _ = unsafePerformIO $ do
 
 main :: IO ()
 main = do
-  opts <- miosParseOptionsFromArgs versionId
-  (title, conf) <- case (_targetFile opts) of
-    Left "" -> return ("Sudoku16", opts { _targetFile = Right sudoku16 })
-    Left f  -> return (f,  opts)
+  opts' <- miosParseOptionsFromArgs versionId
+  (title, opts) <- case (_targetFile opts') of
+    Left "" -> return ("Sudoku16", opts' { _targetFile = Right sudoku16 })
+    Left f  -> return (f,  opts')
   if  _displayHelp opts
     then putStrLn $ miosUsage "\nUsage: glossat [OPTIONS] target.cnf"
     else do
         mutex <- newEmptyMVar :: IO (MVar [Int])
+        s <- buildSolver opts
         void $ forkIO $ do
-          executeSolverSliced mutex conf
+          executeSolverSliced mutex opts s
           v <- readIORef terminated
           writeIORef terminated (True, snd v)
-        animate (InWindow title (800, 500) (20, 20)) black (frame mutex)
+        let h = div (nVars s) 100
+            ofs = fromIntegral $ 30 + 3 * h
+        animate (InWindow title (800, 100 + 6 * h) (0, 0)) black (frame ofs mutex)
 
 {-# NOINLINE frame #-}
-frame :: MVar [Int] ->  Float -> Picture
-frame mt time = Color white $ Scale 1.8 1.8 $ Translate 0 (-70) $ makeGrid (getSolverData mt time)
+frame :: Float -> MVar [Int] ->  Float -> Picture
+frame offset mt time =
+  Color white
+  $ Translate 0 offset
+  $ Scale 1.8 1.8
+  $ makeGrid (getSolverData mt time)
 
 num2pos :: Int -> (Float, Float)
-num2pos n = (fromIntegral (mod n 100) * 4 - 200, 200 - fromIntegral (div n 100) * 4)
+num2pos n = (fromIntegral (mod n 100) * 4 - 200, - fromIntegral (div n 100) * 4)
 
 makeGrid :: [Int] -> Picture
 makeGrid l = Pictures $ zipWith light l [0 .. ]
