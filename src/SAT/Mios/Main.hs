@@ -647,8 +647,9 @@ search s@Solver{..} mutex = do
                               t' <- (* 1.5) <$> get' learntSAdj
                               set' learntSAdj t'
                               set' learntSCnt $ floor t'
-                              -- modify' maxLearnts (* 1.1)
-                              modify' maxLearnts (+ 300)
+                              modify' maxLearnts (+ 3000)
+                              ml <- get' maxLearnts
+                              when (1000000 < ml) $ set' maxLearnts $ fromIntegral nVars
                             loop =<< checkRestartCondition s lbd' d
           else do when (d == 0) . void $ simplifyDB s -- Simplify the set of problem clauses
                   k1 <- get' learnts
